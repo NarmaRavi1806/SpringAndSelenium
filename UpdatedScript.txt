@@ -1,0 +1,175 @@
+RESTCONTROLLER
+
+@RestController
+public class EquipmentController {
+	
+	@Autowired
+	private IEquipmentTrackingService service;
+	
+	@RequestMapping(value="/addrecord",method=RequestMethod.POST,
+			consumes=MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<EquipmentRecord> acceptProductDetails(@ModelAttribute EquipmentRecord record) throws TrackingException{
+		
+		return new ResponseEntity<EquipmentRecord>(service.addEquipmentRecord(record),HttpStatus.OK);
+	}
+	
+	/*@RequestMapping(value="/addrecord",method=RequestMethod.POST)
+	public EquipmentRecord addEquipmentRecord(@RequestBody EquipmentRecord record) throws TrackingException  {
+		try {
+			return service.addEquipmentRecord(record);
+		} catch (TrackingException e) {
+			throw new TrackingException(e.getMessage());
+		}
+
+	}*/
+	
+	@SuppressWarnings("rawtypes")
+	@RequestMapping(method=RequestMethod.GET,value= {"/records"},produces= {"application/JSON"})
+	public ResponseEntity<List> viewAllProductDetails(EquipmentRecord record) throws TrackingException{
+		return new ResponseEntity<List>(service.viewAllEquipments(record),HttpStatus.OK);
+	}
+	
+	@RequestMapping(method=RequestMethod.GET,value= {"/recordsbyEquipmentTag/{equipmentTag}"})
+	public ResponseEntity<EquipmentRecord> viewByEquipmentTag(@PathVariable(value="equipmentTag") String equipmentTag) throws TrackingException{
+		return new ResponseEntity<EquipmentRecord>(service.findByEquipmentTag(equipmentTag),HttpStatus.OK);
+	}
+	
+	@RequestMapping(method=RequestMethod.GET,value= {"/recordsbyUserId/{userId}"})
+	public ResponseEntity<EquipmentRecord> viewByUserId(@PathVariable(value="userId") String userId) throws TrackingException{
+		return new ResponseEntity<EquipmentRecord>(service.findByUserId(userId),HttpStatus.OK);
+	}
+	
+	@RequestMapping(method=RequestMethod.GET,value= {"/recordsbyLocation/{location}"})
+	public ResponseEntity<EquipmentRecord> viewByLocation(@PathVariable(value="location") String location) throws TrackingException{
+		return new ResponseEntity<EquipmentRecord>(service.findByLocation(location),HttpStatus.OK);
+	}
+	
+	@RequestMapping(value="/getbyEquipmentTag")
+	public EquipmentRecord findByEquipmentTag(String equipmentTag) throws TrackingException {
+		
+		try {
+			return service.findByEquipmentTag(equipmentTag);
+		} catch (TrackingException e) {
+			throw new TrackingException(e.getMessage());
+		}
+		
+	}
+	
+	@RequestMapping(value="/getbyUserId")
+	public EquipmentRecord findByUserId(String userId) throws TrackingException{
+		
+	return service.findByUserId(userId);
+	
+	}
+	@RequestMapping(value="/getbyLocation")
+	public EquipmentRecord findByLocation(String location) throws TrackingException{
+		
+	return service.findByLocation(location);
+	
+	}
+	@RequestMapping(value="/updateEquipment",method=RequestMethod.PUT)
+	public EquipmentRecord updateEquipment(@RequestBody EquipmentRecord equipment) throws TrackingException{
+		
+		return service.updateEquipment(equipment);
+	}
+	
+	@RequestMapping(value="/displayAll")
+	public List<EquipmentRecord> viewAllEquipments(EquipmentRecord record) throws TrackingException{
+		return service.viewAllEquipments(record);
+	}
+	
+
+}
+
+
+
+REPO
+
+@Query("SELECT E FROM EquipmentRecord E WHERE E.equipmentTag=:equipmentTag")
+	public EquipmentRecord findByEquipmentTag(@Param(value="equipmentTag") String equipmentTag) throws TrackingException;
+	
+	@Query("SELECT E FROM EquipmentRecord E INNER JOIN E.user u WHERE u.userId=:userId")
+	public EquipmentRecord findByUserId(@Param(value="userId")String userId) throws TrackingException;
+	
+	@Query("SELECT E FROM EquipmentRecord E INNER JOIN E.location l WHERE l.locationName=:locationName")
+	public EquipmentRecord findByLocation(@Param(value="locationName")String locationName) throws TrackingException;
+
+
+
+SERVICEIMPL
+
+
+@Autowired
+	private EquipmentRecordRepo repo;
+	
+	@Override
+	public EquipmentRecord addEquipmentRecord(EquipmentRecord record) throws TrackingException {
+		/*if(!record.getEquipmentTag().matches("//d{10}")) {
+			throw new TrackingException("EquipmentTag should contain only numbers and should not exceed 10");
+			}*/
+		return repo.save(record);
+	}
+
+	@Override
+	public EquipmentRecord findByEquipmentTag(String equipmentTag) throws TrackingException {
+		if(!equipmentTag.matches("//d{10}")) {
+			throw new TrackingException("EquipmentTag should contain only numbers and should not exceed 10");
+			}
+		return repo.findByEquipmentTag(equipmentTag);
+	}
+	
+	@SuppressWarnings("unused")
+	@Override
+	public EquipmentRecord findByUserId(String userId) throws TrackingException {
+	EquipmentRecord record = new EquipmentRecord();
+	if(record==null) {
+	throw new TrackingException("Given user Id is not present in the record");
+	}
+	else {
+	return repo.findByUserId(userId);
+	}
+	}
+
+	@SuppressWarnings("unused")
+	@Override
+	public EquipmentRecord findByLocation(String location) throws TrackingException {
+	EquipmentRecord record = new EquipmentRecord();
+	if(record==null) {
+	throw new TrackingException("Given Location is not present in the record");
+	}
+	else {
+	return repo.findByLocation(location);
+	}
+	}
+
+	@Override
+	public EquipmentRecord updateEquipment(EquipmentRecord equipment) throws TrackingException {
+		EquipmentRecord record= repo.findByEquipmentTag(equipment.getEquipmentTag());
+		if(record.getUseStatus().matches("retired")) {
+			record.setComments(equipment.getComments());
+			repo.save(record);
+		}else {
+		 repo.saveAndFlush(record);
+		}
+		 return record;
+	}
+
+	@Override
+	public List<EquipmentRecord> viewAllEquipments(EquipmentRecord record) throws TrackingException {
+		
+		return repo.findAll();
+	}
+	
+
+
+PROPERTIES
+
+
+server.port=9999
+
+spring.jpa.hibernate.ddl-auto=update
+spring.datasource.url=jdbc:mysql://localhost:3306/Equipmenttracking
+spring.datasource.username=root
+spring.datasource.password=root
+spring.datasource.driver-class-name=com.mysql.jdbc.Driver
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL5Dialect
